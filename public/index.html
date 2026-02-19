@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gemini API Launcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #0a0c10;
+      --surface: #111318;
+      --surface-2: #1a1d25;
+      --border: rgba(255, 255, 255, 0.07);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.35);
+      --accent-2: #818cf8;
+      --success: #34d399;
+      --error: #f87171;
+      --text: #e2e8f0;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --radius: 16px;
+    }
+
+    :root.light {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --border: rgba(0, 0, 0, 0.08);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --accent-2: #4f46e5;
+      --success: #059669;
+      --error: #dc2626;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #475569;
+    }
+
+    :root.light body::before {
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(99, 102, 241, 0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(79, 70, 229, 0.05) 0%, transparent 60%);
+    }
+
+    :root.light h1 {
+      background: linear-gradient(135deg, #1e293b 0%, var(--accent-2) 60%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    :root.light .model-select option {
+      background: #f8fafc;
+    }
+
+    html,
+    body {
+      height: 100%;
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 10%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 80%, rgba(129, 140, 248, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      gap: 2rem;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: var(--accent-2);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 14px;
+      border-radius: 100px;
+      margin-bottom: 1.4rem;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--accent-2);
+      border-radius: 50%;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--accent-2) 60%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      margin-top: 0.75rem;
+      font-size: 1rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 4px 60px rgba(0, 0, 0, 0.4);
+      transition: border-color 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.85rem;
+    }
+
+    /* Model selector */
+    .model-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .model-select-wrap {
+      position: relative;
+      margin-bottom: 1.2rem;
+    }
+
+    .model-select-wrap::after {
+      content: '▾';
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent-2);
+      pointer-events: none;
+      font-size: 0.9rem;
+    }
+
+    .model-select {
+      width: 100%;
+      appearance: none;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 2.5rem 0.75rem 1rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      color: var(--text);
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .model-select:focus {
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+    .model-select option {
+      background: #1a1d25;
+      color: var(--text);
+    }
+
+    /* Prompt textarea */
+    .prompt-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .prompt-textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.6;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 1.2rem;
+    }
+
+    .prompt-textarea::placeholder {
+      color: var(--text-muted);
+    }
+
+    .prompt-textarea:focus {
+      border-color: rgba(99, 102, 241, 0.5);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+    }
+
+
+
+    /* Button */
+    .btn-launch {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent) 0%, #818cf8 100%);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+      box-shadow: 0 4px 24px var(--accent-glow);
+    }
+
+    .btn-launch::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+      pointer-events: none;
+    }
+
+    .btn-launch:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px var(--accent-glow);
+    }
+
+    .btn-launch:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn-launch:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-text {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading .spinner {
+      display: block;
+    }
+
+    .loading .btn-icon {
+      display: none;
+    }
+
+    /* Result panel */
+    .result-panel {
+      margin-top: 1.5rem;
+      padding: 1.2rem 1.4rem;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-panel.visible {
+      display: block;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 0.75rem;
+    }
+
+    .result-status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .result-status-dot.ok {
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+    }
+
+    .result-status-dot.err {
+      background: var(--error);
+      box-shadow: 0 0 8px var(--error);
+    }
+
+    .result-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .result-label.ok {
+      color: var(--success);
+    }
+
+    .result-label.err {
+      color: var(--error);
+    }
+
+    .result-timestamp {
+      margin-left: auto;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-family: 'Fira Code', monospace;
+    }
+
+    .result-output {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* Theme toggle */
+    .theme-toggle {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.25rem;
+      z-index: 100;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      transition: background 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .theme-toggle:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      color: var(--accent-2);
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .theme-toggle-icon {
+      font-size: 0.9rem;
+      transition: transform 0.4s ease;
+    }
+
+    .theme-toggle:hover .theme-toggle-icon {
+      transform: rotate(20deg);
+    }
+
+    /* Footer */
+    .footer {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Theme toggle -->
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
+    <span class="theme-toggle-icon" id="themeIcon">🌙</span>
+    <span id="themeLabel">Light</span>
+  </button>
+
+  <main class="page">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Live API Integration
+      </div>
+      <h1>Catalyst</h1>
+      <p class="subtitle">Type an instruction — Catalyst will act on your computer to complete it</p>
+    </div>
+
+    <!-- Card -->
+    <div class="card">
+      <label class="model-label" for="modelSelect"> Model</label>
+      <div class="model-select-wrap">
+        <select class="model-select" id="modelSelect" onchange="updateFooterModel()">
+          <optgroup label="Gemini 2.5">
+            <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview ✦ Most capable</option>
+          </optgroup>
+          <optgroup label="Gemini 2.0">
+            <option value="gemini-2.0-flash" selected>gemini-2.0-flash</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+            <option value="gemini-2.0-pro-exp">gemini-2.0-pro-exp</option>
+          </optgroup>
+          <optgroup label="Gemini 1.5">
+            <option value="gemini-1.5-pro">gemini-1.5-pro </option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash </option>
+            <option value="gemini-1.5-flash-8b">gemini-1.5-flash-8b</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <label class="prompt-label" for="promptInput">Tell Catalyst to do something</label>
+      <textarea class="prompt-textarea" id="promptInput"
+        placeholder="e.g. Create a folder called 'test' on my Desktop and put a hello.txt file inside it"
+        spellcheck="false"></textarea>
+
+      <button class="btn-launch" id="launchBtn" onclick="launchGemini()">
+        <span class="btn-text">
+          <span class="spinner"></span>
+          <span class="btn-icon">✨</span>
+          <span id="btnLabel">Launch Catalyst</span>
+        </span>
+      </button>
+
+      <!-- Result -->
+      <div class="result-panel" id="resultPanel">
+        <div class="result-header">
+          <div class="result-status-dot" id="statusDot"></div>
+          <span class="result-label" id="statusLabel"></span>
+          <span class="result-timestamp" id="resultTimestamp"></span>
+        </div>
+        <div class="result-output" id="resultOutput"></div>
+      </div>
+    </div>
+
+    <p class="footer" id="footerText">Server at <strong>http://localhost:3001</strong> · Agentic mode:
+      <strong>--yolo</strong> · <span id="footerModel">gemini-2.0-flash</span>
+    </p>
+
+  </main>
+
+  <script>
+    function toggleTheme() {
+      const root = document.documentElement;
+      const isLight = root.classList.toggle('light');
+      document.getElementById('themeIcon').textContent = isLight ? '☀️' : '🌙';
+      document.getElementById('themeLabel').textContent = isLight ? 'Dark' : 'Light';
+      localStorage.setItem('catalyst-theme', isLight ? 'light' : 'dark');
+    }
+
+    // Restore saved theme
+    (function () {
+      if (localStorage.getItem('catalyst-theme') === 'light') {
+        document.documentElement.classList.add('light');
+        document.getElementById('themeIcon').textContent = '☀️';
+        document.getElementById('themeLabel').textContent = 'Dark';
+      }
+    })();
+
+    function updateFooterModel() {
+      const sel = document.getElementById('modelSelect');
+      document.getElementById('footerModel').textContent = sel.value;
+    }
+
+    async function launchGemini() {
+      const btn = document.getElementById('launchBtn');
+      const btnLabel = document.getElementById('btnLabel');
+      const panel = document.getElementById('resultPanel');
+      const dot = document.getElementById('statusDot');
+      const label = document.getElementById('statusLabel');
+      const output = document.getElementById('resultOutput');
+      const timestamp = document.getElementById('resultTimestamp');
+
+      // Loading state
+      btn.disabled = true;
+      btn.classList.add('loading');
+      btnLabel.textContent = 'Catalyst is working…';
+      panel.classList.remove('visible');
+
+      const promptText = document.getElementById('promptInput').value.trim();
+      const selectedModel = document.getElementById('modelSelect').value;
+
+      const payload = {
+        action: 'launch_gemini',
+        options: {
+          mode: 'default',
+          user: 'riya',
+          prompt: promptText || 'Just print the word Hello, nothing else.',
+          model: selectedModel
+        }
+      };
+
+      try {
+        const res = await fetch('/do-something', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        // Populate result
+        const ok = data.success;
+        dot.className = `result-status-dot ${ok ? 'ok' : 'err'}`;
+        label.className = `result-label ${ok ? 'ok' : 'err'}`;
+        label.textContent = ok ? '✓ Success' : '✕ Error';
+        output.textContent = data.output || '(no output)';
+        timestamp.textContent = new Date(data.timestamp).toLocaleTimeString();
+        panel.classList.add('visible');
+
+      } catch (err) {
+        dot.className = 'result-status-dot err';
+        label.className = 'result-label err';
+        label.textContent = '✕ Network Error';
+        output.textContent = String(err);
+        timestamp.textContent = new Date().toLocaleTimeString();
+        panel.classList.add('visible');
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btnLabel.textContent = 'Launch Catalyst';
+      }
+    }
+  </script>
+</body>
+
+</html>
