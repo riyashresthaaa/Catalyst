@@ -1,10 +1,10 @@
-# ✨ Catalyst
+# Catalyst
 
 > A UI-driven agentic launcher that sends natural language instructions to Gemini CLI, which then acts on your computer to complete them — in real time.
 
 ---
 
-## 📖 What is Catalyst?
+## What is Catalyst?
 
 Catalyst is a lightweight full-stack application that bridges a clean browser UI with the **Gemini CLI** running in agentic (YOLO) mode. You type an instruction in plain English, pick a Gemini model, hit **Launch Catalyst**, and Gemini executes the task directly on your machine — creating files, running commands, searching the web, and more.
 
