@@ -504,6 +504,7 @@
       <label class="model-label" for="modelSelect"> Model</label>
       <div class="model-select-wrap">
         <select class="model-select" id="modelSelect" onchange="updateFooterModel()">
+
           <optgroup label="Gemini 2.5">
             <option value="gemini-2.5-pro-preview-03-25">gemini-2.5-pro-preview ✦ Most capable</option>
           </optgroup>
@@ -579,17 +580,7 @@
       document.getElementById('footerModel').textContent = sel.value;
     }
 
-    // Detect if the prompt is a browser-open intent
-    function isBrowserIntent(text) {
-      const lower = text.toLowerCase();
-      const browsers = ['brave', 'chrome', 'chromium', 'firefox', 'safari', 'edge'];
-      const actions = ['open', 'launch', 'start', 'go to', 'browse', 'navigate'];
-      const hasBrowser = browsers.some(b => lower.includes(b));
-      const hasAction = actions.some(a => lower.includes(a));
-      const hasSite = /\b(youtube|github|google|twitter|reddit|gmail|linkedin|vercel|notion)\b/.test(lower)
-        || /https?:\/\//.test(lower);
-      return hasBrowser || (hasAction && hasSite);
-    }
+
 
     function showResult(ok, outputText, ts) {
       const panel = document.getElementById('resultPanel');
@@ -619,19 +610,9 @@
         || 'Just print the word Hello, nothing else.';
       const selectedModel = document.getElementById('modelSelect').value;
 
-      try {
-        // Pre-flight: handle browser-open intents instantly without Gemini
-        if (isBrowserIntent(promptText)) {
-          const res = await fetch('/open-browser', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: promptText })
-          });
-          const data = await res.json();
-          showResult(data.success, data.output, data.timestamp);
-          return;
-        }
 
+
+      try {
         // Default: send to Gemini with auto-injected OS/cwd context
         const res = await fetch('/do-something', {
           method: 'POST',

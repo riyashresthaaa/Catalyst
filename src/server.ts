@@ -213,8 +213,51 @@ app.post('/do-something', (req: Request, res: Response) => {
 
     const rawPrompt = payload.options?.prompt || 'Just print the word Hello, nothing else.';
     const model = payload.options?.model || 'gemini-2.0-flash';
-    // Always default to project dir — user can say "my desktop" etc to override
     const workDir = payload.options?.cwd || PROJECT_DIR;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // FAST PATH: Handle simple browser launches instantly without Gemini
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Identify if this is a simple "open browser" intent, unless it has complex keywords
+    const isSimple = isBrowserIntent(rawPrompt) && !/\b(push|create|write|commit|fix|debug|analyze|check|list|show|run|install|update)\b/i.test(rawPrompt);
+
+    if (isSimple) {
+        const browserName = extractBrowserName(rawPrompt) ?? 'default';
+        const url = resolveUrl(rawPrompt);
+
+        try {
+            const cmdArgs = browserName === 'default'
+                ? (CURRENT_OS === 'linux' ? ['xdg-open', url] : CURRENT_OS === 'macos' ? ['open', url] : ['cmd', '/c', 'start', url])
+                : buildBrowserCommand(browserName, url, CURRENT_OS);
+
+            console.log(`[${timestamp}] Fast-path browser launch → ${cmdArgs.join(' ')}`);
+
+            const [bin, ...args] = cmdArgs;
+            // Detach process so server doesn't wait
+            const proc = spawn(bin, args, { detached: true, stdio: 'ignore' });
+            proc.unref();
+
+            res.json({
+                success: true,
+                output: `Opened ${url} in ${browserName === 'default' ? 'default browser' : browserName}`,
+                url,
+                browser: browserName,
+                command: cmdArgs.join(' '),
+                timestamp,
+                action: payload.action,
+                cwd: workDir
+            });
+            return;
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[${timestamp}] Browser launch error: ${message}`);
+            // Fall through to Gemini if fast path fails? Or just error?
+            // Better to error clearly for specific browser failures
+            res.status(400).json({ success: false, output: message, timestamp, action: payload.action });
+            return;
+        }
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
 
     // Enrich the prompt with full environment context
     const enrichedPrompt = buildContextBlock() + rawPrompt;
@@ -260,38 +303,7 @@ app.post('/do-something', (req: Request, res: Response) => {
 
 // ─── POST /open-browser — instant browser launch, no Gemini needed ───────────
 
-app.post('/open-browser', (req: Request, res: Response) => {
-    const { prompt } = req.body as { prompt: string };
-    const timestamp = new Date().toISOString();
-
-    const browserName = extractBrowserName(prompt) ?? 'default';
-    const url = resolveUrl(prompt);
-
-    try {
-        const cmdArgs = browserName === 'default'
-            ? (CURRENT_OS === 'linux' ? ['xdg-open', url] : CURRENT_OS === 'macos' ? ['open', url] : ['cmd', '/c', 'start', url])
-            : buildBrowserCommand(browserName, url, CURRENT_OS);
-
-        console.log(`[${timestamp}] POST /open-browser → ${cmdArgs.join(' ')}`);
-
-        const [bin, ...args] = cmdArgs;
-        const proc = spawn(bin, args, { detached: true, stdio: 'ignore' });
-        proc.unref();
-
-        res.json({
-            success: true,
-            output: `Opened ${url} in ${browserName === 'default' ? 'default browser' : browserName}`,
-            url,
-            browser: browserName,
-            command: cmdArgs.join(' '),
-            timestamp,
-        });
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error(`[${timestamp}] /open-browser error: ${message}`);
-        res.status(400).json({ success: false, output: message, timestamp });
-    }
-});
+// (Merged into /do-something above)
 
 // ─── GET /env-info — exposes detected environment to the UI ──────────────────
 
