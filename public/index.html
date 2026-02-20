@@ -521,9 +521,7 @@
       </div>
 
       <label class="prompt-label" for="promptInput">Tell Catalyst to do something</label>
-      <textarea class="prompt-textarea" id="promptInput"
-        placeholder="e.g. Create a folder called 'test' on my Desktop and put a hello.txt file inside it"
-        spellcheck="false"></textarea>
+      <textarea class="prompt-textarea" id="promptInput" placeholder="What should I do?" spellcheck="false"></textarea>
 
       <button class="btn-launch" id="launchBtn" onclick="launchGemini()">
         <span class="btn-text">
@@ -545,7 +543,8 @@
     </div>
 
     <p class="footer" id="footerText">Server at <strong>http://localhost:3001</strong> · Agentic mode:
-      <strong>--yolo</strong> · <span id="footerModel">gemini-2.0-flash</span>
+      <strong>--yolo</strong> · <span id="footerModel">gemini-2.0-flash</span> · OS: <span
+        id="footerOS">detecting…</span>
     </p>
 
   </main>
@@ -568,64 +567,85 @@
       }
     })();
 
+    // Fetch OS info from server
+    fetch('/env-info').then(r => r.json()).then(info => {
+      document.getElementById('footerOS').textContent = info.os;
+    }).catch(() => {
+      document.getElementById('footerOS').textContent = 'unknown';
+    });
+
     function updateFooterModel() {
       const sel = document.getElementById('modelSelect');
       document.getElementById('footerModel').textContent = sel.value;
+    }
+
+    // Detect if the prompt is a browser-open intent
+    function isBrowserIntent(text) {
+      const lower = text.toLowerCase();
+      const browsers = ['brave', 'chrome', 'chromium', 'firefox', 'safari', 'edge'];
+      const actions = ['open', 'launch', 'start', 'go to', 'browse', 'navigate'];
+      const hasBrowser = browsers.some(b => lower.includes(b));
+      const hasAction = actions.some(a => lower.includes(a));
+      const hasSite = /\b(youtube|github|google|twitter|reddit|gmail|linkedin|vercel|notion)\b/.test(lower)
+        || /https?:\/\//.test(lower);
+      return hasBrowser || (hasAction && hasSite);
+    }
+
+    function showResult(ok, outputText, ts) {
+      const panel = document.getElementById('resultPanel');
+      const dot = document.getElementById('statusDot');
+      const label = document.getElementById('statusLabel');
+      const output = document.getElementById('resultOutput');
+      const timestamp = document.getElementById('resultTimestamp');
+      dot.className = `result-status-dot ${ok ? 'ok' : 'err'}`;
+      label.className = `result-label ${ok ? 'ok' : 'err'}`;
+      label.textContent = ok ? '✓ Done' : '✕ Error';
+      output.textContent = outputText || '(no output)';
+      timestamp.textContent = new Date(ts).toLocaleTimeString();
+      panel.classList.add('visible');
     }
 
     async function launchGemini() {
       const btn = document.getElementById('launchBtn');
       const btnLabel = document.getElementById('btnLabel');
       const panel = document.getElementById('resultPanel');
-      const dot = document.getElementById('statusDot');
-      const label = document.getElementById('statusLabel');
-      const output = document.getElementById('resultOutput');
-      const timestamp = document.getElementById('resultTimestamp');
 
-      // Loading state
       btn.disabled = true;
       btn.classList.add('loading');
-      btnLabel.textContent = 'Catalyst is working…';
+      btnLabel.textContent = 'Working…';
       panel.classList.remove('visible');
 
-      const promptText = document.getElementById('promptInput').value.trim();
+      const promptText = document.getElementById('promptInput').value.trim()
+        || 'Just print the word Hello, nothing else.';
       const selectedModel = document.getElementById('modelSelect').value;
 
-      const payload = {
-        action: 'launch_gemini',
-        options: {
-          mode: 'default',
-          user: 'riya',
-          prompt: promptText || 'Just print the word Hello, nothing else.',
-          model: selectedModel
-        }
-      };
-
       try {
+        // Pre-flight: handle browser-open intents instantly without Gemini
+        if (isBrowserIntent(promptText)) {
+          const res = await fetch('/open-browser', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: promptText })
+          });
+          const data = await res.json();
+          showResult(data.success, data.output, data.timestamp);
+          return;
+        }
+
+        // Default: send to Gemini with auto-injected OS/cwd context
         const res = await fetch('/do-something', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: JSON.stringify({
+            action: 'launch_gemini',
+            options: { prompt: promptText, model: selectedModel }
+          })
         });
-
         const data = await res.json();
-
-        // Populate result
-        const ok = data.success;
-        dot.className = `result-status-dot ${ok ? 'ok' : 'err'}`;
-        label.className = `result-label ${ok ? 'ok' : 'err'}`;
-        label.textContent = ok ? '✓ Success' : '✕ Error';
-        output.textContent = data.output || '(no output)';
-        timestamp.textContent = new Date(data.timestamp).toLocaleTimeString();
-        panel.classList.add('visible');
+        showResult(data.success, data.output, data.timestamp);
 
       } catch (err) {
-        dot.className = 'result-status-dot err';
-        label.className = 'result-label err';
-        label.textContent = '✕ Network Error';
-        output.textContent = String(err);
-        timestamp.textContent = new Date().toLocaleTimeString();
-        panel.classList.add('visible');
+        showResult(false, String(err), new Date().toISOString());
       } finally {
         btn.disabled = false;
         btn.classList.remove('loading');
